@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class TransactionRepositry {
-    private final Path path = Paths.get("E:\\testProjectFuachers\\Transactions.txt");
+    private final Path path = Paths.get("..\\Transactions.txt");
 
     public void insertTXs(List<Transaction> transactionList) throws IOException {
         for (int i = 0; i < transactionList.size(); i++) {

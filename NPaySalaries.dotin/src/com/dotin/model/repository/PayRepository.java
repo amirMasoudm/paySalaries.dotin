@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class PayRepository {
-    private final Path path = Paths.get("E:\\testProjectFuachers\\pay.txt");
+    private final Path path = Paths.get("..\\pay.txt");
     InvertoryRepository invertoryRepository = new InvertoryRepository();
 
     public void showFile() throws IOException {

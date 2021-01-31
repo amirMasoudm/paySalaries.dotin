@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class InvertoryRepository {
-    private final Path path = Paths.get("E:\\testProjectFuachers\\invertory.txt");
+    private final Path path = Paths.get("..\\invertory.txt");
 
     public void showFile() throws IOException {
         Stream<String> lines = Files.lines(path);
