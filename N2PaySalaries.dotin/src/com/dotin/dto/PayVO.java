@@ -15,13 +15,13 @@ public class PayVO implements Serializable {
         this.oprationType = oprationType;
     }
 
+    public OprationType getOprationType() {
+        return oprationType;
+    }
+
     @Override
     public String toString() {
         return oprationType + "\t" + depositNumber + "\t" + amount + "\n";
-    }
-
-    public OprationType getOprationType() {
-        return oprationType;
     }
 
     public void setOprationType(OprationType oprationType) {

@@ -1,5 +1,6 @@
 package com.dotin.repository;
 
+import com.dotin.dto.PayVO;
 import com.dotin.dto.TransactionVO;
 import org.apache.log4j.Logger;
 import org.apache.log4j.chainsaw.Main;
@@ -10,25 +11,35 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
 import java.util.List;
 
 public class TXRepository {
-    private final static Logger LOOGER = Logger.getLogger(Main.class);
+    private  Logger LOOGER = Logger.getLogger(Main.class);
     private Path path = Paths.get("hear Type to set your transaction file Address");
-    private static TXRepository txRepository = new TXRepository();
+    private static final TXRepository txRepository = new TXRepository();
 
     public static TXRepository getInstance() {
         return txRepository;
     }
 
-    public void insertTXFile(List<TransactionVO> transactionList) {
-        for (int i = 0; i < transactionList.size(); i++) {
-            TransactionVO transaction = transactionList.get(i);
+    protected void setPaymentToTransaction(List<PayVO> payment){
+        List<TransactionVO> transactionList=new ArrayList<>();
+        String debtorDepositNumber=payment.get(0).getDepositNumber();
+        for (int i=1;i<payment.size();i++){
+            TransactionVO transactionVO=new TransactionVO(debtorDepositNumber,payment.get(i).getDepositNumber(),payment.get(i).getAmount());
+            transactionList.add(transactionVO);
+        }
+        getTransactionList(transactionList);
+    }
+
+    private void getTransactionList(List<TransactionVO> transactionList) {
+        for (TransactionVO transaction : transactionList) {
             insertToTXFile(transaction);
         }
     }
 
-    public void insertToTXFile(TransactionVO transactionVO) {
+    private void insertToTXFile(TransactionVO transactionVO) {
         try {
             String rootPath = String.valueOf(path.getRoot());
             if (rootPath.equals("null")) {

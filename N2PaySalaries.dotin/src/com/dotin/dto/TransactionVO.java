@@ -2,11 +2,9 @@ package com.dotin.dto;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+
 
 public class TransactionVO implements Serializable {
-    private final Path path = Paths.get("E:\\testProjectFuachers\\Transactions.txt");
     String debtorDN;
     String creditorDN;
     BigDecimal amount;
@@ -16,9 +14,6 @@ public class TransactionVO implements Serializable {
         this.debtorDN = debtorDN;
         this.creditorDN = creditorDN;
         this.amount = amount;
-    }
-
-    public TransactionVO() {
     }
 
     @Override

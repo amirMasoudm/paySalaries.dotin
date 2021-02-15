@@ -1,14 +1,24 @@
 package com.dotin;
 
+import com.dotin.dto.InvertoryVO;
+import com.dotin.dto.PayVO;
+import com.dotin.repository.InvertoryRepository;
 import com.dotin.repository.PayRepository;
-import com.dotin.service.PayService;
-
-import java.io.IOException;
+import java.util.List;
 
 public class Main {
     public static void main(String[] args) {
-        PayService payService=new PayService();
-        payService.paySalaries();
+
+        InvertoryRepository invertoryRepository=new InvertoryRepository();
+        PayRepository payRepository=new PayRepository();
+
+        invertoryRepository.generateInventoryFile();
+        payRepository.genratePaymentFile();
+
+        List<PayVO> getPaymentFile=payRepository.getPaymentFile();
+        List<InvertoryVO> getInvertoryFile=invertoryRepository.findInventoryFile();
+
+        payRepository.paySalaries(getPaymentFile,getInvertoryFile);
 
     }
 }

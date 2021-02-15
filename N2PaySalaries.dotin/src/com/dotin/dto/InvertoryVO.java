@@ -13,9 +13,6 @@ public class InvertoryVO implements Serializable {
         this.amount = amount;
     }
 
-    public InvertoryVO() {
-    }
-
     @Override
     public String toString() {
         return depositNumber + "\t" + amount + "\n";

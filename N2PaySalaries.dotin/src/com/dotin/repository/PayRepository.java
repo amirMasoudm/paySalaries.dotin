@@ -3,9 +3,9 @@ package com.dotin.repository;
 import com.dotin.dto.InvertoryVO;
 import com.dotin.dto.OprationType;
 import com.dotin.dto.PayVO;
-import com.dotin.dto.TransactionVO;
 import org.apache.log4j.Logger;
 import org.apache.log4j.chainsaw.Main;
+
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -13,86 +13,92 @@ import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 public class PayRepository {
-    private static final Logger LOGGER = Logger.getLogger(Main.class);
-    static Path path = Paths.get("hear Type to set your pay file Address");
+    private final Logger LOGGER = Logger.getLogger(Main.class);
+    private Path path = Paths.get("hear Type to set your transaction file Address");
     InvertoryRepository invertoryRepository = new InvertoryRepository();
 
-    public void paySalaries() {
-        List<InvertoryVO> invertoryList = new ArrayList();
-        List<PayVO> payList = new ArrayList<>();
-        List<TransactionVO> transactionList = new ArrayList<>();
-        BigDecimal sumTX = new BigDecimal(0);
+    public void paySalaries(List<PayVO> paymentList, List<InvertoryVO> inventoryFile) {
+        BigDecimal sumTX = paymentList.get(0).getAmount();
         sumTX = sumTX.setScale(2, RoundingMode.HALF_DOWN);
-        String debtorDepositNumber = String.valueOf(InvertoryRepository.generateRoundDNTX());
-        InvertoryVO debtorInvertory = invertoryRepository.findInverory(debtorDepositNumber, invertoryRepository.findInvertoryFile());
-        if (debtorInvertory != null) {
-            for (int i = 0; i < 10; i++) {
-                String creditorDepositNumber = InvertoryRepository.generateRoundDNTX();
-                InvertoryVO creditorInvetory = invertoryRepository.findInverory(creditorDepositNumber, invertoryRepository.findInvertoryFile());
-                if (creditorInvetory != null) {
-                    LOGGER.debug("credit inverory recived>>>" + i);
-                    BigDecimal amount = InvertoryRepository.generateRoundAmountTX();
-                    amount = amount.setScale(2, RoundingMode.HALF_DOWN);
-                    List<Object> lists = generatePayCreditor(debtorDepositNumber, creditorInvetory.getDepositNumber(), amount);
-                    payList.add((PayVO) lists.get(0));
-                    transactionList.add((TransactionVO) lists.get(1));
-                    invertoryList.add((InvertoryVO) lists.get(2));
-                    sumTX = sumTX.add(amount);
-                } else if (creditorInvetory == null) {
-                    LOGGER.debug("creditor generated dose not exist in list");
-                    i--;
-                }
-            }
-            if (debtorInvertory.getAmount().compareTo(sumTX) == 1 || debtorInvertory.getAmount().compareTo(sumTX) == 0) {
-                payList.add(new PayVO(OprationType.debtor, debtorDepositNumber, sumTX));
-                debtorInvertory.setAmount(debtorInvertory.getAmount().subtract(sumTX));
-                invertoryList.add(debtorInvertory);
-                goToDon(payList, transactionList, invertoryList);
-                LOGGER.debug("pay salaries dose Done!!!");
-            } else {
-                LOGGER.debug("sum to pay is less than debtor invertory \n sum toPay= " + debtorInvertory.getAmount() + " debtor invertory= " + sumTX);
-            }
+        InvertoryVO debtorInvertory = invertoryRepository.findInventory(paymentList.get(0).getDepositNumber(), inventoryFile);
+        if (debtorInvertory.getAmount().compareTo(sumTX) >= 0) {
+            invertoryRepository.updateInventories(setAmountInvertories(paymentList));
+            TXRepository.getInstance().setPaymentToTransaction(paymentList);
+            LOGGER.debug("pay salaries dose done");
         } else {
-            LOGGER.debug("debtor generated dose not in invertoy list");
-            paySalaries();
+            try {
+                throw new PayException(sumTX, debtorInvertory.getAmount());
+            } catch (PayException e) {
+                paySalaries(genratePaymentFile(), inventoryFile);
+            }
         }
     }
 
-    public List<Object> generatePayCreditor(String debtorDN, String creditorDepositNumber, BigDecimal amount) {
-        List<Object> lists = new ArrayList<>();
-        InvertoryRepository invertoryRepository = new InvertoryRepository();
-        PayVO payCreditor = new PayVO(OprationType.creditor, creditorDepositNumber, amount);
-        TransactionVO tx = new TransactionVO(debtorDN, creditorDepositNumber, amount);
-        InvertoryVO creditorInvetory = invertoryRepository.findInverory(creditorDepositNumber, invertoryRepository.findInvertoryFile());
-        creditorInvetory.setAmount(creditorInvetory.getAmount().add(amount));
-        lists.add(payCreditor);
-        lists.add(tx);
-        lists.add(creditorInvetory);
-        LOGGER.debug("genared pay creditor");
-        return lists;
+    private List<InvertoryVO> setAmountInvertories(List<PayVO> paymentList) {
+        List<InvertoryVO> invertoryList = new ArrayList<>();
+        InvertoryVO debtorInvertory = invertoryRepository.findInventory(paymentList.get(0).getDepositNumber(), invertoryRepository.findInventoryFile());
+        debtorInvertory.setAmount(debtorInvertory.getAmount().subtract(paymentList.get(0).getAmount()));
+        invertoryList.add(debtorInvertory);
+        for (int i = 0; i < paymentList.size() - 1; i++) {
+            InvertoryVO creditorInventory = invertoryRepository.findInventory(paymentList.get(i).getDepositNumber(), invertoryRepository.findInventoryFile());
+            creditorInventory.setAmount(creditorInventory.getAmount().add(paymentList.get(i).getAmount()));
+            invertoryList.add(creditorInventory);
+        }
+        return invertoryList;
     }
 
-    public void goToDon(List<PayVO> payVOList, List<TransactionVO> TXlisst, List<InvertoryVO> invertoryVOList) {
-        insertToPayFile(payVOList);
-        TXRepository.getInstance().insertTXFile(TXlisst);
-        invertoryRepository.updateInvertories(invertoryVOList);
+    public List<PayVO> genratePaymentFile() {
+        List<PayVO> payList = new ArrayList<>();
+        String debtorDepositNumber = invertoryRepository.generateRandomDepositNumber();
+        InvertoryVO debtorInvertory = invertoryRepository.findInventory(debtorDepositNumber, invertoryRepository.findInventoryFile());
+        BigDecimal sumTX = new BigDecimal(0);
+        sumTX = sumTX.setScale(2, RoundingMode.HALF_DOWN);
+        if (debtorInvertory != null) {
+            for (int i = 0; i < 10; i++) {
+                String creditorDepositNumber = invertoryRepository.generateRandomDepositNumber();
+                InvertoryVO creditorInvetory = invertoryRepository.findInventory(creditorDepositNumber, invertoryRepository.findInventoryFile());
+                if (creditorInvetory != null) {
+                    BigDecimal amount = invertoryRepository.generateRandomAmountTX();
+                    amount = amount.setScale(2, RoundingMode.HALF_DOWN);
+                    PayVO creitorPay = new PayVO(OprationType.creditor, creditorDepositNumber, amount);
+                    payList.add(creitorPay);
+                    sumTX = sumTX.add(amount);
+                } else {
+                    i--;
+                }
+            }
+            PayVO debtroPay = new PayVO(OprationType.debtor, debtorDepositNumber, sumTX);
+            payList.add(debtroPay);
+            insertToPayFile(payList);
+            return payList;
+        } else return genratePaymentFile();
     }
 
+    private void insertToPayFile(List<PayVO> payList) {
+        Path checkpath = Paths.get(System.getProperty("user.home") + "\\pay.txt");
+        try {
+            Files.deleteIfExists(path);
+            Files.deleteIfExists(checkpath);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
-    public void insertToPayFile(List<PayVO> payList) {
         PayVO a = payList.get(0);
         payList.set(0, payList.get(payList.size() - 1));
         payList.set(payList.size() - 1, a);
-        for (int i = 0; i < payList.size(); i++) {
-            PayVO pay = payList.get(i);
+        for (PayVO pay : payList) {
             insertToPayFle(pay);
         }
     }
 
-    public void insertToPayFle(PayVO payVO) {
+    private void insertToPayFle(PayVO payVO) {
         payVO.setAmount(payVO.getAmount().setScale(2, RoundingMode.HALF_DOWN));
         try {
             String rootPath = String.valueOf(path.getRoot());
@@ -111,5 +117,31 @@ public class PayRepository {
         }
 
     }
+
+    public List<PayVO> getPaymentFile() {
+        Stream<String> lines = null;
+        try {
+            lines = Files.lines(path);
+        } catch (IOException e) {
+            path = Paths.get(System.getProperty("user.home") + "\\pay.txt");
+            try {
+                lines = Files.lines(path);
+            } catch (IOException ioException) {
+                LOGGER.fatal("its wrong!!");
+            }
+        }
+        assert lines != null;
+        String content = lines.collect(Collectors.joining("\t"));
+        List<String> payArray = Arrays.asList(content.split("\t"));
+        List<PayVO> payList = new ArrayList<>();
+        for (int i = 0; i < payArray.size(); i += 3) {
+            OprationType oprationType = OprationType.valueOf(payArray.get(i));
+            BigDecimal amount = BigDecimal.valueOf(Double.parseDouble(payArray.get(i + 2)));
+            PayVO payVO = new PayVO(oprationType, payArray.get(i + 1), amount);
+            payList.add(payVO);
+        }
+        return payList;
+    }
+
 }
 
